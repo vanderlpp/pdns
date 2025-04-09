@@ -75,7 +75,7 @@ if [[ "$ENABLE_SSL" == "s" || "$ENABLE_SSL" == "S" ]]; then
 fi
 
 # Remove arquivos de instalação do Poweradmin
-rm -rf /var/www/html/poweradmin/install/
+# rm -rf /var/www/html/poweradmin/install/
 
 # Pega o IP da máquina
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
