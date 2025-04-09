@@ -28,16 +28,9 @@ Ideal para servidores de DNS autoritativo com gerenciamento remoto via interface
 
 ---
 
-## 🧪 Testado em:
-
-- Ubuntu Server 24.04 (limpo)
-- Ambiente Proxmox, VMware, VirtualBox
-
----
-
-## 📥 Como usar
+## 📥 Instalação
 
 Execute o script diretamente com:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/SEU-USUARIO/SEU-REPO/main/install-powerdns.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/vanderlpp/pdns/refs/heads/main/install-powerdns.sh)"
