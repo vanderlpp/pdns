@@ -1,14 +1,14 @@
 #!/bin/bash
 
 clear
-echo "🧠 PowerDNS + PowerAdmin (GUI) Installer para Ubuntu 24"
-echo "====================================================="
+echo "🚀 PowerDNS + PowerAdmin (GUI) Installer para Ubuntu 24"
+echo "======================================================="
 
 # Input de dados
 read -p "🌐 Qual o domínio da interface web (ex: dns.seudominio.com)? " WEB_DOMAIN
 read -p "🔐 Senha para o banco de dados (usuário 'pdns'): " -s DB_PASS
 echo ""
-echo "⏳ Iniciando instalação... Isso pode levar alguns minutos."
+echo "⏳ Iniciando instalação..."
 
 # Atualiza pacotes
 apt update && apt upgrade -y
@@ -16,7 +16,7 @@ apt update && apt upgrade -y
 # Instala MariaDB
 apt install mariadb-server -y
 
-# Cria DB e usuário
+# Cria banco e usuário
 mysql -e "CREATE DATABASE powerdns;"
 mysql -e "GRANT ALL ON powerdns.* TO 'pdns'@'localhost' IDENTIFIED BY '${DB_PASS}';"
 mysql -e "FLUSH PRIVILEGES;"
@@ -38,19 +38,21 @@ wget -q https://raw.githubusercontent.com/PowerDNS/pdns/master/modules/gmysqlbac
 mysql -u root powerdns < /tmp/schema.sql
 rm /tmp/schema.sql
 
-# Instala Apache + PHP
-apt install apache2 php php-mysql php-mbstring php-xml php-intl php-curl unzip git -y
+# Instala Apache + PHP + dependências do PowerAdmin
+apt install apache2 php php-mysql php-mbstring php-xml php-intl php-curl unzip git composer -y
 
-# Clona Poweradmin
+# Clona PowerAdmin
 cd /var/www/html
+rm -rf poweradmin
 git clone https://github.com/poweradmin/poweradmin.git
 cd poweradmin
+composer install --no-dev --optimize-autoloader
 
 # Permissões corretas
 chown -R www-data:www-data /var/www/html/poweradmin
 chmod -R 755 /var/www/html/poweradmin
 
-# Gera config.inc.php automaticamente
+# Gera config.inc.php
 cat > /var/www/html/poweradmin/inc/config.inc.php <<EOF
 <?php
 \$db_host = 'localhost';
@@ -84,30 +86,25 @@ a2ensite ${WEB_DOMAIN}.conf
 a2enmod rewrite
 systemctl reload apache2
 
-# (Opcional) Let's Encrypt
+# HTTPS opcional
 read -p "🔒 Deseja habilitar HTTPS com Let's Encrypt? [s/n]: " ENABLE_SSL
 if [[ "$ENABLE_SSL" == "s" || "$ENABLE_SSL" == "S" ]]; then
   apt install certbot python3-certbot-apache -y
   certbot --apache -d ${WEB_DOMAIN}
 fi
 
-# Remove apenas se config já existir
-if [ -f /var/www/html/poweradmin/inc/config.inc.php ]; then
-  rm -rf /var/www/html/poweradmin/install/
-fi
+# Remove pasta install (seguro)
+[ -d /var/www/html/poweradmin/install ] && rm -rf /var/www/html/poweradmin/install
 
 # IP da máquina
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
 
-# Finalização
+# Fim
 echo ""
 echo "✅ Instalação finalizada com sucesso!"
 echo "======================================"
-echo "🌐 Acesse: http://${WEB_DOMAIN} (ou https se ativou SSL)"
+echo "🌐 Interface disponível em: http://${WEB_DOMAIN}"
+[ "$ENABLE_SSL" == "s" ] || [ "$ENABLE_SSL" == "S" ] && echo "🔐 HTTPS: https://${WEB_DOMAIN}"
 echo "🖥️ IP do servidor: ${IP_ADDRESS}"
 echo "🔐 Banco: powerdns | Usuário: pdns | Senha: ${DB_PASS}"
 echo ""
-echo "✅ Interface pronta para uso!"
-echo ""
-echo "📦 Script oficial:"
-echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/vanderlpp/pdns/refs/heads/main/install-powerdns.sh)\""
