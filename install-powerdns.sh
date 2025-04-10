@@ -33,18 +33,35 @@ gmysql-password=${DB_PASS}
 gmysql-dbname=powerdns
 EOF
 
-# Baixa e aplica schema do banco
+# Aplica schema do banco
 wget -q https://raw.githubusercontent.com/PowerDNS/pdns/master/modules/gmysqlbackend/schema/schema.mysql.sql -O /tmp/schema.sql
 mysql -u root powerdns < /tmp/schema.sql
 rm /tmp/schema.sql
 
-# Instala Apache + PHP + extensões
+# Instala Apache + PHP
 apt install apache2 php php-mysql php-mbstring php-xml php-intl php-curl unzip git -y
 
 # Clona Poweradmin
 cd /var/www/html
 git clone https://github.com/poweradmin/poweradmin.git
-chown -R www-data:www-data poweradmin
+cd poweradmin
+
+# Permissões corretas
+chown -R www-data:www-data /var/www/html/poweradmin
+chmod -R 755 /var/www/html/poweradmin
+
+# Gera config.inc.php automaticamente
+cat > /var/www/html/poweradmin/inc/config.inc.php <<EOF
+<?php
+\$db_host = 'localhost';
+\$db_user = 'pdns';
+\$db_pass = '${DB_PASS}';
+\$db_name = 'powerdns';
+\$db_type = 'mysql';
+\$db_layer = 'PDO';
+\$session_key = '$(openssl rand -hex 16)';
+?>
+EOF
 
 # Configura Apache
 cat > /etc/apache2/sites-available/${WEB_DOMAIN}.conf <<EOF
@@ -65,7 +82,7 @@ EOF
 
 a2ensite ${WEB_DOMAIN}.conf
 a2enmod rewrite
-systemctl restart apache2
+systemctl reload apache2
 
 # (Opcional) Let's Encrypt
 read -p "🔒 Deseja habilitar HTTPS com Let's Encrypt? [s/n]: " ENABLE_SSL
@@ -74,21 +91,23 @@ if [[ "$ENABLE_SSL" == "s" || "$ENABLE_SSL" == "S" ]]; then
   certbot --apache -d ${WEB_DOMAIN}
 fi
 
-# Remove arquivos de instalação do Poweradmin
-# rm -rf /var/www/html/poweradmin/install/
+# Remove apenas se config já existir
+if [ -f /var/www/html/poweradmin/inc/config.inc.php ]; then
+  rm -rf /var/www/html/poweradmin/install/
+fi
 
-# Pega o IP da máquina
+# IP da máquina
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
 
 # Finalização
 echo ""
 echo "✅ Instalação finalizada com sucesso!"
 echo "======================================"
-echo "🌐 Acesse: http://${WEB_DOMAIN} (ou https se habilitou SSL)"
+echo "🌐 Acesse: http://${WEB_DOMAIN} (ou https se ativou SSL)"
 echo "🖥️ IP do servidor: ${IP_ADDRESS}"
-echo "🔐 Banco de dados: powerdns"
-echo "👤 Usuário DB: pdns"
-echo "🔑 Senha DB: ${DB_PASS}"
+echo "🔐 Banco: powerdns | Usuário: pdns | Senha: ${DB_PASS}"
 echo ""
-echo "🚨 Lembre-se de criar o registro A apontando ${WEB_DOMAIN} para ${IP_ADDRESS}"
-echo "✅ Interface pronta para uso. Boa sorte!"
+echo "✅ Interface pronta para uso!"
+echo ""
+echo "📦 Script oficial:"
+echo "bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/vanderlpp/pdns/refs/heads/main/install-powerdns.sh)\""
