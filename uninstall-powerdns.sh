@@ -12,43 +12,48 @@ if [[ "$confirm" != "s" && "$confirm" != "S" ]]; then
   exit 1
 fi
 
+echo ""
 echo "⏳ Removendo serviços e pacotes..."
 
 # Para serviços
-systemctl stop pdns
-systemctl stop apache2
-systemctl stop mariadb
+systemctl stop pdns 2>/dev/null
+systemctl stop apache2 2>/dev/null
+systemctl stop mariadb 2>/dev/null
 
-# Remove banco e usuário
-mysql -e "DROP DATABASE IF EXISTS powerdns;"
-mysql -e "DROP USER IF EXISTS 'pdns'@'localhost';"
-mysql -e "FLUSH PRIVILEGES;"
+# Remove banco e usuário (com fallback)
+mysql -e "DROP DATABASE IF EXISTS powerdns;" 2>/dev/null
+mysql -e "DROP USER IF EXISTS 'pdns'@'localhost';" 2>/dev/null
+mysql -e "FLUSH PRIVILEGES;" 2>/dev/null
 
-# Remove pacotes
-apt purge --autoremove -y pdns-server pdns-backend-mysql mariadb-server apache2 php php-* certbot python3-certbot-apache unzip git
+# Remove pacotes e dependências
+apt purge --autoremove -y pdns-server pdns-backend-mysql mariadb-server \
+  apache2 php php-mysql php-mbstring php-xml php-intl php-curl \
+  certbot python3-certbot-apache unzip git
 
-# Remove arquivos
+# Remove arquivos da web e configs
 rm -rf /var/www/html/poweradmin
 rm -f /etc/apache2/sites-available/${WEB_DOMAIN}.conf
 rm -f /etc/apache2/sites-enabled/${WEB_DOMAIN}.conf
+rm -rf /etc/powerdns
+rm -rf /etc/mysql
+rm -rf /var/lib/mysql
+rm -rf /var/log/mysql
+rm -rf /var/log/pdns
+rm -rf /var/log/apache2
+rm -f /etc/systemd/system/multi-user.target.wants/pdns.service
+
+# Remove certificados SSL do domínio
 rm -rf /etc/letsencrypt/live/${WEB_DOMAIN}
 rm -rf /etc/letsencrypt/archive/${WEB_DOMAIN}
 rm -f /etc/letsencrypt/renewal/${WEB_DOMAIN}.conf
-rm -rf /var/lib/mysql
-rm -rf /var/log/apache2
-rm -rf /var/log/mysql
-rm -rf /var/log/pdns
-rm -rf /etc/powerdns
-rm -rf /etc/mysql
-rm -f /etc/systemd/system/multi-user.target.wants/pdns.service
 
-# Atualiza Apache
+# Reload Apache (em caso de mudança de configs)
 a2dissite ${WEB_DOMAIN}.conf 2>/dev/null
 systemctl reload apache2 2>/dev/null
 
-# Atualiza lista de pacotes
+# Atualiza pacotes
 apt update
 
 echo ""
 echo "✅ PowerDNS, PowerAdmin e todos os componentes foram completamente removidos."
-echo "🧼 Sistema limpo!"
+echo "🧼 Sistema limpo e pronto para novo uso!"
